@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { MIN_PASSWORD_LENGTH } from "@/lib/login-limit";
 
 /** Reports which server settings are present and whether the database is reachable. */
 export async function GET() {
@@ -19,5 +20,7 @@ export async function GET() {
     }
   }
   const ok = Object.values(env).every(Boolean) && database === "ok";
-  return Response.json({ ok, env, database }, { status: ok ? 200 : 503 });
+  // Reported separately: a short password disables dashboard login but not telemetry ingestion.
+  const passwordStrongEnough = (process.env.DASHBOARD_PASSWORD ?? "").length >= MIN_PASSWORD_LENGTH;
+  return Response.json({ ok, env, database, passwordStrongEnough }, { status: ok ? 200 : 503 });
 }

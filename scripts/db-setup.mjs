@@ -15,7 +15,7 @@ try {
   await sql.unsafe(schema);
   const tables = await sql`
     SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name IN ('events', 'metric_points', 'limit_snapshots', 'devices', 'model_prices', 'accounts')
+    WHERE table_schema = 'public' AND table_name IN ('events', 'metric_points', 'limit_snapshots', 'devices', 'model_prices', 'accounts', 'login_attempts')
     ORDER BY table_name`;
   console.log("Schema applied. Tables:", tables.map((t) => t.table_name).join(", "));
 } catch (err) {

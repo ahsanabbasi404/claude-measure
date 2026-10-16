@@ -15,6 +15,8 @@ export async function GET(req: Request) {
     prices = `failed: ${(err as Error).message}`;
   }
 
+  await db()`DELETE FROM login_attempts WHERE ts < now() - interval '1 day'`;
+
   const days = Number(process.env.RETENTION_DAYS);
   if (!Number.isInteger(days) || days <= 0) {
     return Response.json({ prices, retention: "RETENTION_DAYS not set" });

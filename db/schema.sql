@@ -136,3 +136,13 @@ CREATE TABLE IF NOT EXISTS accounts (
   last_device_id     TEXT,
   last_dev_name      TEXT
 );
+
+-- Dashboard login attempts, used for brute-force protection.
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id       BIGSERIAL PRIMARY KEY,
+  ts       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ip       TEXT NOT NULL,
+  success  BOOLEAN NOT NULL
+);
+CREATE INDEX IF NOT EXISTS login_attempts_ip_ts_idx ON login_attempts (ip, ts DESC);
+CREATE INDEX IF NOT EXISTS login_attempts_ts_idx ON login_attempts (ts DESC);
