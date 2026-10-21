@@ -9,6 +9,7 @@ import { useFilters, useNow, type MultiKey } from "./hooks";
 
 const NAV = [
   { href: "/", label: "Overview", icon: "M2.5 9.5h3v4h-3zM6.5 5.5h3v8h-3zM10.5 2.5h3v11h-3z" },
+  { href: "/report", label: "Daily report", icon: "M4 1.5h5.5L12.5 4.5v10h-8.5zM9.5 1.5v3h3M6.5 8h4M6.5 10.5h4M6.5 5.5h1.5" },
   { href: "/people", label: "People", icon: "M5.5 7a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5ZM1.5 13.5c0-2.2 1.8-4 4-4s4 1.8 4 4M11 7a1.75 1.75 0 1 0 0-3.5M11.5 9.6c1.7.3 3 1.8 3 3.9" },
   { href: "/accounts", label: "Accounts", icon: "M2 4.5h12v8H2zM2 7h12M4.5 10h3" },
   { href: "/sessions", label: "Sessions", icon: "M2.5 3.5h11M2.5 8h11M2.5 12.5h7" },

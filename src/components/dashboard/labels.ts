@@ -73,3 +73,11 @@ export function colorFor(order: string[], key: string): string {
 const EFFORT_ORDER = ["low", "medium", "high", "xhigh", "max", "default"];
 export const sortEffort = <T extends { key: string }>(rows: T[]) =>
   [...rows].sort((a, b) => EFFORT_ORDER.indexOf(a.key) - EFFORT_ORDER.indexOf(b.key));
+
+/** What a request's cost paid for, in a fixed color order. */
+export const COST_PARTS = [
+  { key: "cache_read", label: "Re-reading context", color: CATEGORICAL[0], hint: "Cache reads: the conversation so far, sent again with every request" },
+  { key: "cache_write", label: "Writing to cache", color: CATEGORICAL[1], hint: "New or rebuilt context written to the prompt cache" },
+  { key: "output", label: "Output", color: CATEGORICAL[2], hint: "Tokens the model generated, including thinking" },
+  { key: "input", label: "Uncached input", color: CATEGORICAL[3], hint: "Input that was neither cached nor read from cache" },
+] as const;

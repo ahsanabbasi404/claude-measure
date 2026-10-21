@@ -56,7 +56,6 @@ export function useFilters() {
       if (Array.isArray(value)) value.forEach((v) => next.append(key, v));
       else if (value) next.set(key, value);
     }
-    if (next.get("range") === "7d") next.delete("range");
     if (next.get("range") !== "custom") {
       next.delete("from");
       next.delete("to");

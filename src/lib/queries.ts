@@ -7,6 +7,7 @@ import {
   bucketSql, CLIENT_SQL, CONTEXT_SQL, daySql, PERSON_SQL, scope, TOKENS_SQL, USAGE_KIND_SQL,
   type Filters, type ScopeOptions,
 } from "./filters";
+import type { PriceRow, RequestRow } from "./session-analysis";
 
 /*
  * Aggregations shared by the analytics endpoints. Every function takes the parsed filters plus
@@ -640,4 +641,33 @@ export function median(values: number[]): number | null {
   if (!v.length) return null;
   const mid = Math.floor(v.length / 2);
   return v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
+}
+
+// ---------------------------------------------------------------- request-level analysis
+
+export async function loadPrices(sql: postgres.Sql) {
+  const rows = await sql<PriceRow[]>`
+    SELECT model, input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_per_mtok FROM model_prices`;
+  return new Map(rows.map((r) => [r.model, r]));
+}
+
+/**
+ * Requests in time order per session, with the token split needed for cache analysis.
+ * `mainOnly` keeps just the conversation and compaction requests (enough to find cache breaks).
+ */
+export async function loadRequestRows(sql: postgres.Sql, f: Filters, o: ScopeOptions = {}, mainOnly = false): Promise<RequestRow[]> {
+  const { person, kind } = fragments(sql);
+  const rows = await sql`
+    SELECT ts, session_id, ${person} AS dev, model, ${kind} AS kind, attrs->>'agent.name' AS agent, attrs->>'effort' AS effort, prompt_id,
+      coalesce(input_tokens, 0)::float8 AS input, coalesce(output_tokens, 0)::float8 AS output,
+      coalesce(cache_read_tokens, 0)::float8 AS cache_read, coalesce(cache_creation_tokens, 0)::float8 AS cache_write,
+      coalesce((attrs->>'cache_creation_5m_tokens')::float8, 0) AS cache_write_5m,
+      coalesce((attrs->>'cache_creation_1h_tokens')::float8, 0) AS cache_write_1h,
+      coalesce(cost_usd, 0)::float8 AS cost_usd, coalesce(duration_ms, 0)::float8 AS duration_ms
+    FROM events
+    WHERE ${scope(sql, f, o)} AND event_name = 'api_request' AND session_id IS NOT NULL
+      ${mainOnly ? sql`AND ${kind} IN ('main', 'compaction')` : sql``}
+    ORDER BY session_id, ts
+    LIMIT 200000`;
+  return rows.map((r) => ({ ...(r as unknown as RequestRow), ts: new Date(r.ts as Date).toISOString() }));
 }

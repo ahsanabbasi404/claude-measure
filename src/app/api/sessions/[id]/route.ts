@@ -1,10 +1,13 @@
 import { allTime, decodeParam, json, requestFilters } from "@/lib/api";
-import { modelLabel } from "@/lib/analytics";
 import { db } from "@/lib/db";
 import { CONTEXT_SQL, USAGE_KIND_SQL } from "@/lib/filters";
-import { breakdowns, errorGroups, num, sessionsList } from "@/lib/queries";
+import { breakdowns, errorGroups, loadPrices, loadRequestRows, num, sessionsList } from "@/lib/queries";
+import { analyzeSession, BREAK_HINT, BREAK_LABEL, toolLoops } from "@/lib/session-analysis";
 
-/** One session: every request with its context size, per-prompt cost, compactions, tools and errors. */
+/**
+ * One session: every request with its cost split and context size, cache breaks and their causes,
+ * spikes, model segments, lessons, per-prompt cost, compactions, tools and errors.
+ */
 export async function GET(req: Request, ctx: RouteContext<"/api/sessions/[id]">) {
   const id = decodeParam((await ctx.params).id);
   const { f } = requestFilters(req);
@@ -14,13 +17,10 @@ export async function GET(req: Request, ctx: RouteContext<"/api/sessions/[id]">)
   const context = sql.unsafe(CONTEXT_SQL);
   const kind = sql.unsafe(USAGE_KIND_SQL);
 
-  const [summary, requests, prompts, compactions, mix, errors] = await Promise.all([
+  const [summary, rows, prices, prompts, compactions, tools, mix, errors] = await Promise.all([
     sessionsList(sql, all, o, "cost", 1),
-    sql`
-      SELECT ts, model, ${kind} AS kind, (${context})::float8 AS context, coalesce(output_tokens, 0)::float8 AS output_tokens,
-        coalesce(cost_usd, 0)::float8 AS cost_usd, duration_ms, attrs->>'effort' AS effort, attrs->>'agent.name' AS agent, prompt_id
-      FROM events WHERE session_id = ${id} AND event_name = 'api_request'
-      ORDER BY ts LIMIT 5000`,
+    loadRequestRows(sql, all, o),
+    loadPrices(sql),
     sql`
       SELECT prompt_id,
         min(ts) AS ts, max(ts) AS last_ts,
@@ -42,27 +42,32 @@ export async function GET(req: Request, ctx: RouteContext<"/api/sessions/[id]">)
       SELECT ts, attrs->>'trigger' AS trigger, (attrs->>'pre_tokens')::float8 AS pre_tokens,
         (attrs->>'post_tokens')::float8 AS post_tokens, error
       FROM events WHERE session_id = ${id} AND event_name = 'compaction' ORDER BY ts`,
+    sql`
+      SELECT ts, tool_name, success FROM events
+      WHERE session_id = ${id} AND event_name = 'tool_result' ORDER BY ts LIMIT 20000`,
     breakdowns(sql, all, o),
     errorGroups(sql, all, o),
   ]);
 
-  let cumulative = 0;
+  const compactionList = compactions.map((c) => ({
+    ts: new Date(c.ts as Date).toISOString(), trigger: (c.trigger as string) ?? null,
+    pre_tokens: c.pre_tokens === null ? null : num(c.pre_tokens), post_tokens: c.post_tokens === null ? null : num(c.post_tokens),
+    error: (c.error as string) ?? null,
+  }));
+  const loops = toolLoops(tools.map((t) => ({ ts: new Date(t.ts as Date).toISOString(), tool: (t.tool_name as string) ?? "unknown", success: t.success as boolean | null })));
+  const analysis = analyzeSession(rows, prices, { compactions: compactionList, toolLoops: loops });
+
   return json({
     generatedAt: new Date().toISOString(),
     session: summary[0] ?? null,
-    requests: requests.map((r) => {
-      cumulative += num(r.cost_usd);
-      return {
-        ts: new Date(r.ts as Date).toISOString(), model: r.model ? modelLabel(r.model as string) : null, kind: r.kind,
-        context: num(r.context), output_tokens: num(r.output_tokens), cost_usd: num(r.cost_usd), cumulative_cost: cumulative,
-        duration_ms: num(r.duration_ms), effort: r.effort, agent: r.agent, prompt_id: r.prompt_id,
-      };
-    }),
+    ...analysis,
+    breakLabels: BREAK_LABEL,
+    breakHints: BREAK_HINT,
     prompts: prompts.map((p) => ({
       ...p, ts: new Date(p.ts as Date).toISOString(), last_ts: new Date(p.last_ts as Date).toISOString(),
       cost_usd: num(p.cost_usd), peak_context: p.peak_context === null ? null : num(p.peak_context),
     })),
-    compactions: compactions.map((c) => ({ ...c, ts: new Date(c.ts as Date).toISOString() })),
+    compactions: compactionList,
     ...mix,
     errors,
   });

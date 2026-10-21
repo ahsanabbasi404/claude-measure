@@ -96,7 +96,8 @@ and every range is compared with the previous period of the same length.
 | **Overview** | Totals with change vs the previous period, usage over time (split by person, account, model, client or purpose), who is active right now, attention items, account limits, people, models, effort levels, a weekday × hour heatmap, errors and the most expensive sessions |
 | **People** / **person** | Everyone with usage, trend, daily sparkline, efficiency, limits, cost per active day and per prompt, context size and Opus share. A person's page adds comparisons with the team median, accounts used, efficiency breakdown, sessions, tools, errors, activity and machines |
 | **Accounts** / **account** | Each Claude account's plan, weekly and 5-hour limits, real-time burn (last hour, 5 hours, 24 hours, 7 days) and who draws from it. An account's page adds limit history, a per-person split and its sessions |
-| **Sessions** / **session** | Sessions sortable by value, duration, context and prompts. A session's page charts context size per request (compactions marked), cumulative value, and the cost of each prompt with the tools it used |
+| **Daily report** | Defaults to today. Team totals, what usage paid for (re-reading context, cache writes, output), cache rebuilds by cause, team lessons, day-by-day totals, and for each person their numbers, costliest sessions and lessons, each linked to the session where it happened |
+| **Sessions** / **session** | Sessions sortable by value, duration, context and prompts. A session's page lists what to learn from it, splits every request's cost into its parts, charts context size with the model in use, cache breaks and compactions marked, and lists cache breaks (with cause and extra cost), spikes and the cost of each prompt |
 | **Activity** | Live feed of prompts, expensive requests, compactions, sign-ins and failures, plus grouped errors |
 
 - **Usage value** is the API-equivalent cost Claude Code reports per request. Max plans are not billed per
@@ -105,6 +106,13 @@ and every range is compared with the previous period of the same length.
 - **Weekly limit** comes from the latest status line snapshot of each account. The tick on the bar marks the
   percentage the account reaches at reset if the pace since the window started continues. *Runs out early*
   means that point is past 100% before the reset.
+- **Cache breaks** are requests that rewrote a large part of the conversation to the prompt cache instead of
+  reading it. Each is attributed to a cause: a pause longer than the cache lifetime (5 minutes, or 1 hour when
+  the client writes one-hour cache), a model switch, compaction, a resumed session, or changed context
+  (CLAUDE.md, tools, MCP servers, an edited message). The extra cost is what the rewrite cost beyond reading
+  the same tokens from cache, using the model's prices and scaled to the cost Claude Code reported.
+- **Spikes** are requests costing more than 5× the session's typical request (at least $0.75), labeled by what
+  drove them.
 - **Purpose** splits usage into the conversation itself, subagents, compaction, web search/fetch processing and
   background work (session titles, summaries).
 - **Efficiency (0–100)** combines five parts, each shown with its value on the person's page:

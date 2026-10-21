@@ -282,13 +282,29 @@ export type SessionsResponse = RangeInfo & {
   summary: { count: number; median_cost: number | null; median_duration_s: number | null; median_peak_context: number | null };
 };
 
+export type CostSplit = { input: number; cache_write: number; cache_read: number; output: number };
+export type BreakCause = "idle" | "model-switch" | "compaction" | "resumed" | "context-changed";
+export type CacheBreak = {
+  n: number; ts: string; session_id: string; dev: string; cause: BreakCause; model: string | null; prev_model: string | null;
+  gap_s: number | null; rewritten_tokens: number; context: number; cost_usd: number; extra_usd: number;
+};
+export type Lesson = { severity: "serious" | "warning" | "info"; title: string; detail: string; impact_usd: number | null };
+
 export type SessionDetail = Mix & {
   generatedAt: string;
   session: Session | null;
   requests: {
-    ts: string; model: string | null; kind: string; context: number; output_tokens: number; cost_usd: number;
-    cumulative_cost: number; duration_ms: number; effort: string | null; agent: string | null; prompt_id: string | null;
+    n: number; ts: string; model: string | null; model_label: string | null; kind: string; agent: string | null; effort: string | null;
+    prompt_id: string | null; context: number; output_tokens: number; cache_read: number; cache_write: number;
+    cost_usd: number; cumulative_cost: number; duration_ms: number; parts: CostSplit;
   }[];
+  breaks: CacheBreak[];
+  spikes: { n: number; ts: string; cost_usd: number; times_median: number; driver: keyof CostSplit; detail: string; model: string | null; kind: string }[];
+  segments: { from: number; to: number; model: string; label: string; requests: number; cost_usd: number }[];
+  lessons: Lesson[];
+  costSplit: CostSplit & { total: number; avoidable_usd: number; typical_request_usd: number };
+  breakLabels: Record<BreakCause, string>;
+  breakHints: Record<BreakCause, string>;
   prompts: {
     prompt_id: string; ts: string; last_ts: string; prompt_length: number | null; command_name: string | null;
     requests: number; cost_usd: number; peak_context: number | null; tool_calls: number; tool_failures: number;
@@ -306,4 +322,31 @@ export type Options = {
   teams: { key: string }[];
   models: { key: string; label: string }[];
   clients: { key: string }[];
+};
+
+export type ReportLesson = {
+  severity: "serious" | "warning" | "info"; kind: string; title: string; detail: string;
+  impact_usd: number | null; session_id?: string; people?: string[];
+};
+
+export type ReportPerson = {
+  dev: string; team: string | null; cost_usd: number; requests: number; prompts: number; sessions: number;
+  active_hours: number; cost_per_active_hour: number | null; max_parallel: number; avg_parallel: number;
+  split: CostSplit; avoidable_usd: number; breaks: Record<BreakCause, { count: number; extra_usd: number }>;
+  spikes: number; peak_context: number; large_context_usd: number; subagent_usd: number;
+  models: { model: string; label: string; cost_usd: number }[];
+  sessions_list: { session_id: string; cost: number; avoidable: number; first_ts: string; last_ts: string; requests: number; lessons: number; top: string | null }[];
+  lessons: ReportLesson[];
+};
+
+export type Report = RangeInfo & {
+  previous: Totals;
+  totals: {
+    cost_usd: number; requests: number; prompts: number; sessions: number; people: number; active_hours: number;
+    avoidable_usd: number; split: CostSplit; median_cost_per_active_hour: number | null;
+  };
+  breaks: Record<BreakCause, { count: number; extra_usd: number; people: string[] }>;
+  lessons: ReportLesson[];
+  days: { day: string; cost_usd: number; people: number; sessions: number; avoidable_usd: number; top_person: string | null; top_cost_usd: number }[];
+  people: ReportPerson[];
 };
