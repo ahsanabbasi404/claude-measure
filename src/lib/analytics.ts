@@ -70,6 +70,9 @@ export type DevAggregate = {
   active_seconds: number;
   lines_added: number;
   lines_removed: number;
+  /** Main-conversation requests and the context they sent; subagent calls carry their own small contexts. */
+  main_requests?: number;
+  main_context?: number;
 };
 
 export type ScorePart = { key: string; label: string; score: number; value: string; hint: string; weight: number };
@@ -81,7 +84,10 @@ export const cacheHitRate = (d: DevAggregate) => {
   const total = contextTokens(d);
   return total > 0 ? d.cache_read_tokens / total : null;
 };
-export const avgContext = (d: DevAggregate) => (d.requests > 0 ? contextTokens(d) / d.requests : null);
+export const avgContext = (d: DevAggregate) => {
+  if (d.main_requests && d.main_context !== undefined) return d.main_context / d.main_requests;
+  return d.requests > 0 ? contextTokens(d) / d.requests : null;
+};
 export const linesPerDollar = (d: DevAggregate) =>
   d.cost_usd > 0 ? (d.lines_added + d.lines_removed) / d.cost_usd : null;
 
@@ -126,7 +132,7 @@ export function efficiency(d: DevAggregate, base: ReturnType<typeof teamBaseline
       key: "context", label: "Context size", weight: 0.25,
       score: clamp(100 - ((ctx - 60_000) / 140_000) * 100),
       value: `${k(ctx)} tokens/request`,
-      hint: "Average tokens sent per request. Large contexts burn limits fastest; /clear between unrelated tasks keeps it small.",
+      hint: "Average context sent per main-conversation request. Large contexts burn limits fastest; /clear between unrelated tasks keeps it small.",
     });
   }
 

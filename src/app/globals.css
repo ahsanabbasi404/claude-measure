@@ -20,6 +20,15 @@
   --warning: #fab219;
   --serious: #ec835a;
   --critical: #d03b3b;
+  /* Categorical series, fixed order (validated for color-vision deficiency on adjacent pairs). */
+  --cat-1: #2a78d6;
+  --cat-2: #eb6834;
+  --cat-3: #1baf7a;
+  --cat-4: #eda100;
+  --cat-5: #e87ba4;
+  --cat-6: #008300;
+  --cat-7: #6250d6;
+  --cat-other: #b5b3ab;
   --shadow: 0 0 0 1px rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.06), 0 2px 4px 0 rgba(0, 0, 0, 0.03);
 }
 
@@ -40,6 +49,14 @@
     --series-track: #1f3550;
     --good-text: #0ca30c;
     --shadow: 0 0 0 1px rgba(255, 255, 255, 0.07);
+    --cat-1: #3987e5;
+    --cat-2: #d95926;
+    --cat-3: #199e70;
+    --cat-4: #c98500;
+    --cat-5: #d55181;
+    --cat-6: #008300;
+    --cat-7: #9085e9;
+    --cat-other: #5c5b57;
   }
 }
 
@@ -59,6 +76,14 @@
   --series-track: #1f3550;
   --good-text: #0ca30c;
   --shadow: 0 0 0 1px rgba(255, 255, 255, 0.07);
+  --cat-1: #3987e5;
+  --cat-2: #d95926;
+  --cat-3: #199e70;
+  --cat-4: #c98500;
+  --cat-5: #d55181;
+  --cat-6: #008300;
+  --cat-7: #9085e9;
+  --cat-other: #5c5b57;
 }
 
 @theme inline {
@@ -109,6 +134,16 @@ body {
 
 .live-dot {
   animation: live-pulse 2s ease-out infinite;
+}
+
+/* Refetching keeps the previous render, dimmed, instead of flashing a skeleton. */
+.is-refetching {
+  opacity: 0.6;
+  transition: opacity 150ms;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -9,7 +9,7 @@ Developer machine                                   Vercel (this app)           
  Claude Code ── built-in OpenTelemetry (http/json) ─► /v1/logs, /v1/metrics ─────────► events, metric_points
  ccm statusline ─ weekly / 5-hour limit % ──────────► /api/limits ───────────────────► limit_snapshots, accounts
  ccm hook (session start) ─ heartbeat, self-update ─► /api/client/heartbeat ─────────► devices
-                                                       /  and /setup (dashboard, polls every 10 s)
+                                                       dashboard pages, poll every 15 s
 ```
 
 ## What is collected
@@ -86,19 +86,35 @@ settings then show "Re-run installer" on the Setup page and a notice in their st
 
 ## Reading the dashboard
 
+Every page shares one filter bar: a time range (today, yesterday, last 24 hours, 7/14/30/90 days, or a custom
+range) and filters for person, Claude account, team, model and client. Filters live in the URL, so a filtered view
+can be bookmarked or shared, and links between pages keep them. Days are calendar days in the viewer's timezone,
+and every range is compared with the previous period of the same length.
+
+| Page | Shows |
+|---|---|
+| **Overview** | Totals with change vs the previous period, usage over time (split by person, account, model, client or purpose), who is active right now, attention items, account limits, people, models, effort levels, a weekday × hour heatmap, errors and the most expensive sessions |
+| **People** / **person** | Everyone with usage, trend, daily sparkline, efficiency, limits, cost per active day and per prompt, context size and Opus share. A person's page adds comparisons with the team median, accounts used, efficiency breakdown, sessions, tools, errors, activity and machines |
+| **Accounts** / **account** | Each Claude account's plan, weekly and 5-hour limits, real-time burn (last hour, 5 hours, 24 hours, 7 days) and who draws from it. An account's page adds limit history, a per-person split and its sessions |
+| **Sessions** / **session** | Sessions sortable by value, duration, context and prompts. A session's page charts context size per request (compactions marked), cumulative value, and the cost of each prompt with the tools it used |
+| **Activity** | Live feed of prompts, expensive requests, compactions, sign-ins and failures, plus grouped errors |
+
 - **Usage value** is the API-equivalent cost Claude Code reports per request. Max plans are not billed per
   token; this value is the most consistent measure of how much limit a person consumes. New models are
   priced by Claude Code itself; the server only fills in prices from a public list when a request arrives without one.
 - **Weekly limit** comes from the latest status line snapshot of each account. The tick on the bar marks the
   percentage the account reaches at reset if the pace since the window started continues. *Runs out early*
   means that point is past 100% before the reset.
-- **Efficiency (0–100)** combines five parts, each shown with its value in the person's detail panel:
-  cache reuse (20%), context size per request (25%), lines changed per dollar relative to the team median (25%),
-  errors and rejected tool uses (15%), and auto-compactions per session (15%). People with fewer than 15
-  requests in the period show *Not enough data*.
-- **Needs attention** lists projected limit exhaustion, accounts above 80% of their weekly limit, rate limiting,
-  account switching, shared accounts, very large contexts, frequent auto-compaction, low efficiency, and
-  outdated Claude Code versions.
+- **Purpose** splits usage into the conversation itself, subagents, compaction, web search/fetch processing and
+  background work (session titles, summaries).
+- **Efficiency (0–100)** combines five parts, each shown with its value on the person's page:
+  cache reuse (20%), context size per main-conversation request (25%), lines changed per dollar relative to the
+  team median (25%), errors and rejected tool uses (15%), and auto-compactions per session (15%). People with fewer
+  than 15 requests in the period show *Not enough data*.
+- **Attention items** cover projected limit exhaustion, accounts above 80% of their weekly or 5-hour limit, rate
+  limiting, "credit balance too low" errors, shared accounts, account switching, heavy users (above 2.5× the team
+  median), single-day spikes, very large contexts (relative to the team), frequent auto-compaction, low cache reuse,
+  max-effort and subagent-heavy usage, unusually expensive sessions, low efficiency and outdated Claude Code versions.
 
 ## Limitations
 
@@ -120,8 +136,9 @@ client/              Scripts served to developer machines
 db/schema.sql        Database schema (idempotent)
 scripts/db-setup.mjs Applies the schema
 src/app/v1/*         OTLP/HTTP JSON receivers
-src/app/api/*        Limits, client (agent, settings, heartbeat, check), stats, devices, auth, cron
+src/app/api/*        Analytics (overview, people, accounts, sessions, activity, options), limits,
+                     client (agent, settings, heartbeat, check), devices, auth, cron
 src/app/install.*    Serves the installers with the deployment URL filled in
-src/lib/             Parsing, pricing, analytics, settings generation
+src/lib/             Parsing, pricing, filters, queries, insights, settings generation
 src/components/      Dashboard UI
 ```

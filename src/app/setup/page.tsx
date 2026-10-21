@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import SetupView from "@/components/dashboard/setup-view";
 
-export default function SetupPage() {
-  return <SetupView />;
+export default function Page() {
+  return (
+    <Suspense>
+      <SetupView />
+    </Suspense>
+  );
 }

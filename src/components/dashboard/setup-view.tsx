@@ -89,7 +89,7 @@ export default function SetupView() {
   const counts = data?.devices.reduce<Record<string, number>>((acc, d) => ((acc[d.status] = (acc[d.status] ?? 0) + 1), acc), {});
 
   return (
-    <Shell updatedAt={dataUpdatedAt ? new Date(dataUpdatedAt).toISOString() : undefined} error={error ? error.message : null}>
+    <Shell updatedAt={dataUpdatedAt ? new Date(dataUpdatedAt).toISOString() : undefined} error={error ? error.message : null} filters={false}>
       <Panel
         title="Install on a developer machine"
         description="Run once per machine. Each person enters their name; their Claude account email is detected automatically on every request."

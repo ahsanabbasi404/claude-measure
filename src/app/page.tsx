@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import Overview from "@/components/dashboard/overview";
 
-export default function Home() {
-  return <Overview />;
+export default function Page() {
+  return (
+    <Suspense>
+      <Overview />
+    </Suspense>
+  );
 }

@@ -10,7 +10,8 @@ function createClient() {
   return postgres(url, {
     // Poolers such as Neon's "-pooler" endpoint (PgBouncer, transaction mode) do not support prepared statements.
     prepare: false,
-    max: 3,
+    // Dashboard endpoints run a dozen independent aggregations in parallel.
+    max: 8,
     idle_timeout: 20,
     connect_timeout: 10,
     onnotice: () => {},
