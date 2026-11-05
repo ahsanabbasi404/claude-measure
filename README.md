@@ -134,7 +134,8 @@ When the database plan's size limit is reached, Postgres rejects inserts and **t
 while heartbeats keep arriving. The dashboard then shows a red banner. To recover:
 
 1. `npm run db:prune` shows what can be removed; `npm run db:prune:apply` removes it (permanently) and frees
-   the space for reuse.
+   the space for reuse, then compacts the tables so the database file size shrinks. `npm run db:compact` does
+   only the compaction (no rows are removed).
 2. Set `RETENTION_DAYS` (for example 60) so the daily cron deletes old data, and `DATABASE_SIZE_LIMIT_MB` so the
    dashboard warns at 85% of the limit. Raising the database plan also works.
 

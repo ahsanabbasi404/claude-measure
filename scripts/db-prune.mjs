@@ -1,6 +1,7 @@
 // Removes stored telemetry that the storage policy no longer keeps, and frees the space for reuse.
 //   npm run db:prune            report what would be removed (no changes)
-//   npm run db:prune:apply      remove it (same as passing --yes)
+//   npm run db:prune:apply      remove it (same as passing --yes), then compact
+//   npm run db:compact          only rewrite tables compactly so the database file size shrinks
 // Deleted rows are gone for good. Everything the dashboard reads is kept.
 import { readFile } from "node:fs/promises";
 import postgres from "postgres";
@@ -22,6 +23,23 @@ const SECONDARY_INDEXES = ["events_device_ts_idx", "events_email_ts_idx", "event
 async function recreateIndexes() {
   const schema = await readFile(new URL("../db/schema.sql", import.meta.url), "utf8");
   await sql.unsafe(schema);
+}
+
+/**
+ * Plain VACUUM makes deleted space reusable but keeps the files at their old size, and the database
+ * plan counts file size. VACUUM FULL rewrites a table compactly (no rows are removed), which needs
+ * room for the new copy, so the smaller table goes first to free space for the larger one. Each
+ * table is locked for the few seconds it takes; telemetry sent meanwhile is retried by the client.
+ */
+async function compact() {
+  for (const table of ["metric_points", "events"]) {
+    try {
+      console.log(`Compacting ${table}...`);
+      await sql.unsafe(`VACUUM (FULL, ANALYZE) ${table}`);
+    } catch (err) {
+      console.log(`  skipped: ${err.message}. The freed space is still reused by new telemetry.`);
+    }
+  }
 }
 
 const mb = (bytes) => `${(Number(bytes) / 1024 / 1024).toFixed(0)} MB`;
@@ -59,6 +77,12 @@ async function inBatches(label, table, where, action) {
 try {
   const before = await sizes();
   console.log(`Database ${mb(before.db)} (events ${mb(before.events)}, metric_points ${mb(before.metrics)})\n`);
+  if (process.argv.includes("--compact")) {
+    await compact();
+    const after = await sizes();
+    console.log(`\nDatabase ${mb(after.db)} (events ${mb(after.events)}, metric_points ${mb(after.metrics)})`);
+    process.exit(0);
+  }
 
   const [ev] = await sql`
     SELECT count(*)::int AS n, coalesce(sum(pg_column_size(e.*)), 0)::bigint AS bytes FROM events e WHERE ${droppedEvents}`;
@@ -92,12 +116,9 @@ try {
     await sql.unsafe("VACUUM ANALYZE metric_points");
     console.log("Rebuilding indexes...");
     await recreateIndexes();
+    await compact();
     const after = await sizes();
-    const [live] = await sql`
-      SELECT coalesce(sum(pg_column_size(e.*)), 0)::bigint AS events FROM events e`;
-    console.log(`\nDone. Live event data is now about ${mb(live.events)}.`);
-    console.log(`Files: database ${mb(after.db)}. Freed space inside the tables is reused by new telemetry,`);
-    console.log("so the database file size changes little, but ingestion works again.");
+    console.log(`\nDone. Database ${mb(after.db)} (events ${mb(after.events)}, metric_points ${mb(after.metrics)}).`);
   }
 } catch (err) {
   console.error("\nPrune failed:", err.message);

@@ -10,7 +10,8 @@
     "db:setup": "node --env-file-if-exists=.env.local scripts/db-setup.mjs",
     "typecheck": "tsc --noEmit",
     "db:prune": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/db-prune.mjs",
-    "db:prune:apply": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/db-prune.mjs --yes"
+    "db:prune:apply": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/db-prune.mjs --yes",
+    "db:compact": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/db-prune.mjs --compact"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.3",
