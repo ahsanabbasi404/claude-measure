@@ -1,4 +1,5 @@
 import { gunzipSync, inflateSync } from "node:zlib";
+import { isStoredEvent, slimAttrs, STORED_METRICS } from "./storage-policy";
 
 /*
  * Minimal OTLP/HTTP JSON decoding for Claude Code telemetry.
@@ -155,10 +156,12 @@ export function parseLogs(payload: unknown): EventRow[] {
         const a: Attrs = { ...resource, ...toAttrs(rec.attributes) };
         const body = anyValue(rec.body);
         const rawName = str(a["event.name"]) ?? (typeof body === "string" ? body : null) ?? "unknown";
+        const eventName = rawName.replace(/^claude_code\./, "");
+        if (!isStoredEvent(eventName, a)) continue;
         rows.push({
           ...identity(a),
           ts: nanosToDate(rec.timeUnixNano, rec.observedTimeUnixNano),
-          event_name: rawName.replace(/^claude_code\./, ""),
+          event_name: eventName,
           prompt_id: str(a["prompt.id"]),
           user_id: str(a["user.id"]),
           organization_id: str(a["organization.id"]),
@@ -177,7 +180,7 @@ export function parseLogs(payload: unknown): EventRow[] {
           tool_name: str(a["tool_name"]),
           error: str(a["error"] ?? a["error_type"] ?? a["error_name"]),
           status_code: str(a["status_code"]),
-          attrs: a,
+          attrs: slimAttrs(a),
         });
       }
     }
@@ -227,6 +230,8 @@ export function parseMetrics(payload: unknown): MetricRow[] {
       for (const m of sm.metrics ?? []) {
         const series = m.sum ?? m.gauge;
         if (!series) continue; // histograms are not emitted by Claude Code
+        const metricName = m.name.replace(/^claude_code\./, "");
+        if (!STORED_METRICS.includes(metricName)) continue;
         const temporality = m.sum ? temporalityName(m.sum.aggregationTemporality) : "gauge";
         for (const dp of series.dataPoints ?? []) {
           const value = num(dp.asDouble ?? dp.asInt);
@@ -235,13 +240,13 @@ export function parseMetrics(payload: unknown): MetricRow[] {
           rows.push({
             ...identity(a),
             ts: nanosToDate(dp.timeUnixNano, dp.startTimeUnixNano),
-            metric_name: m.name.replace(/^claude_code\./, ""),
+            metric_name: metricName,
             value,
             unit: m.unit || null,
             temporality,
             kind: str(a["type"]),
             model: str(a["model"]),
-            attrs: a,
+            attrs: slimAttrs(a),
           });
         }
       }

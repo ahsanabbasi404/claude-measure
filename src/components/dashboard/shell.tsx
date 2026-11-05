@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { ago } from "@/lib/format";
 import { FilterBar } from "./filter-bar";
-import { useFilters, useNow, type MultiKey } from "./hooks";
+import { useFilters, useIngestStatus, useNow, type MultiKey } from "./hooks";
 
 const NAV = [
   { href: "/", label: "Overview", icon: "M2.5 9.5h3v4h-3zM6.5 5.5h3v8h-3zM10.5 2.5h3v11h-3z" },
@@ -22,6 +22,39 @@ function NavIcon({ d }: { d: string }) {
     <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden className="shrink-0">
       <path d={d} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+const mb = (bytes: number) => `${Math.round(bytes / 1024 / 1024).toLocaleString()} MB`;
+
+/** Shown when devices check in but their telemetry is not being stored, or storage is nearly full. */
+function IngestBanner({ now }: { now: number }) {
+  const { data } = useIngestStatus();
+  if (!data || (!data.ingest_stalled && !data.database_nearly_full)) return null;
+  return (
+    <div role="alert" className="border-b border-[color-mix(in_oklab,var(--critical)_35%,transparent)] bg-[color-mix(in_oklab,var(--critical)_10%,var(--page))]">
+      <div className="mx-auto max-w-[1400px] px-4 py-2.5 text-[13px] sm:px-6">
+        {data.ingest_stalled ? (
+          <>
+            <span className="font-semibold text-critical">Telemetry is not being stored.</span>{" "}
+            <span className="text-ink-2">
+              {data.devices_checking_in} device{data.devices_checking_in === 1 ? "" : "s"} checked in during the last 2 hours, but the last event
+              arrived {data.last_event_at ? ago(data.last_event_at, now) : "never"}. The database is {mb(data.database_bytes)}
+              {data.database_limit_bytes ? ` of ${mb(data.database_limit_bytes)}` : ""}; a full database is the usual cause. Run{" "}
+              <code className="font-mono text-ink">npm run db:prune</code> or raise the database plan, and check the Vercel logs.
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="font-semibold text-critical">Database almost full.</span>{" "}
+            <span className="text-ink-2">
+              {mb(data.database_bytes)} of {data.database_limit_bytes ? mb(data.database_limit_bytes) : "?"} used. Ingestion stops when it is full;
+              set RETENTION_DAYS or raise the plan.
+            </span>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -121,6 +154,7 @@ export function Shell({
           </nav>
         </header>
 
+        <IngestBanner now={now} />
         {filters && (
           <div className="sticky top-0 z-20 border-b border-hairline bg-page/90 backdrop-blur max-lg:static">
             <div className="mx-auto max-w-[1400px] px-4 py-2.5 sm:px-6">

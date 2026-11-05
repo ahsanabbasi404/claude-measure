@@ -124,6 +124,22 @@ and every range is compared with the previous period of the same length.
   median), single-day spikes, very large contexts (relative to the team), frequent auto-compaction, low cache reuse,
   max-effort and subagent-heavy usage, unusually expensive sessions, low efficiency and outdated Claude Code versions.
 
+## Storage
+
+Only telemetry the dashboard uses is stored (`src/lib/storage-policy.ts`): diagnostic events (hooks, plugins,
+settings, response bodies, accepted tool decisions, successful MCP connections) and the token and cost counters
+(duplicates of request events) are dropped at ingest, and attributes already stored as columns are stripped.
+
+When the database plan's size limit is reached, Postgres rejects inserts and **telemetry stops being stored**
+while heartbeats keep arriving. The dashboard then shows a red banner. To recover:
+
+1. `npm run db:prune` shows what can be removed; `npm run db:prune:apply` removes it (permanently) and frees
+   the space for reuse.
+2. Set `RETENTION_DAYS` (for example 60) so the daily cron deletes old data, and `DATABASE_SIZE_LIMIT_MB` so the
+   dashboard warns at 85% of the limit. Raising the database plan also works.
+
+Telemetry sent while the database was full is not recoverable.
+
 ## Limitations
 
 - Weekly and 5-hour limit percentages are only available through Claude Code's status line. They appear
@@ -143,6 +159,7 @@ client/              Scripts served to developer machines
   install.ps1        Installer for Windows
 db/schema.sql        Database schema (idempotent)
 scripts/db-setup.mjs Applies the schema
+scripts/db-prune.mjs Removes stored data the storage policy no longer keeps
 src/app/v1/*         OTLP/HTTP JSON receivers
 src/app/api/*        Analytics (overview, people, accounts, sessions, activity, options), limits,
                      client (agent, settings, heartbeat, check), devices, auth, cron

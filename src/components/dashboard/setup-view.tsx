@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ago } from "@/lib/format";
-import { REFRESH_MS, useNow } from "./hooks";
+import { REFRESH_MS, useIngestStatus, useNow } from "./hooks";
 import { Shell } from "./shell";
 import { CheckIcon, Empty, Panel, Pill, SeverityIcon, Skeleton } from "./ui";
 
@@ -86,6 +86,7 @@ export default function SetupView() {
     refetchInterval: REFRESH_MS,
   });
 
+  const { data: status } = useIngestStatus();
   const counts = data?.devices.reduce<Record<string, number>>((acc, d) => ((acc[d.status] = (acc[d.status] ?? 0) + 1), acc), {});
 
   return (
@@ -117,6 +118,17 @@ export default function SetupView() {
           </p>
         </div>
       </Panel>
+
+      {status && (
+        <Panel title="Storage" description="Telemetry stops being stored when the database plan's size limit is reached">
+          <div className="flex flex-wrap gap-x-8 gap-y-2 text-[13px]">
+            <span><span className="text-muted">Database </span><span className="font-medium text-ink tabular">{Math.round(status.database_bytes / 1048576).toLocaleString()} MB</span>
+              {status.database_limit_bytes && <span className="text-muted"> of {Math.round(status.database_limit_bytes / 1048576).toLocaleString()} MB</span>}</span>
+            <span><span className="text-muted">Last event stored </span><span className={`font-medium tabular ${status.ingest_stalled ? "text-critical" : "text-ink"}`}>{status.last_event_at ? ago(status.last_event_at, now) : "never"}</span></span>
+            <span className="text-muted">Set DATABASE_SIZE_LIMIT_MB to get a warning at 85%, and RETENTION_DAYS to delete old data automatically.</span>
+          </div>
+        </Panel>
+      )}
 
       <Panel
         title="Devices"

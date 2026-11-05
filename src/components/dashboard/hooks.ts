@@ -109,6 +109,24 @@ export function useApi<T>(path: string | null, extra: Record<string, string> = {
   });
 }
 
+export type IngestStatus = {
+  last_event_at: string | null;
+  devices_checking_in: number;
+  ingest_stalled: boolean;
+  database_bytes: number;
+  database_limit_bytes: number | null;
+  database_nearly_full: boolean;
+};
+
+/** Whether telemetry is still being stored; drives the warning banner on every page. */
+export function useIngestStatus() {
+  return useQuery<IngestStatus>({
+    queryKey: ["status"],
+    queryFn: () => getJson<IngestStatus>("/api/status"),
+    refetchInterval: 60_000,
+  });
+}
+
 /** Filter choices and the stable entity order used for colors. */
 export function useOptions() {
   return useQuery<Options>({
